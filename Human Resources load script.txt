@@ -1,0 +1,507 @@
+///$tab Main
+SET ThousandSep=',';
+SET DecimalSep='.';
+SET MoneyThousandSep=',';
+SET MoneyDecimalSep='.';
+SET MoneyFormat='$ ###0.00;-$ ###0.00';
+SET TimeFormat='h:mm:ss TT';
+SET DateFormat='M/D/YYYY';
+SET TimestampFormat='M/D/YYYY h:mm:ss[.fff] TT';
+SET FirstWeekDay=6;
+SET BrokenWeeks=1;
+SET ReferenceDay=0;
+SET FirstMonthOfYear=1;
+SET CollationLocale='en-US';
+SET CreateSearchIndexOnReload=1;
+SET MonthNames='Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec';
+SET LongMonthNames='January;February;March;April;May;June;July;August;September;October;November;December';
+SET DayNames='Mon;Tue;Wed;Thu;Fri;Sat;Sun';
+SET LongDayNames='Monday;Tuesday;Wednesday;Thursday;Friday;Saturday;Sunday';
+SET NumericalAbbreviation='3:k;6:M;9:G;12:T;15:P;18:E;21:Z;24:Y;-3:m;-6:μ;-9:n;-12:p;-15:f;-18:a;-21:z;-24:y';
+
+LET vCurrentDate = '30/11/2018';
+LET vDateDiff = Today() - Date#('$(vCurrentDate)', 'dd/MM/yyyy');
+///$tab Recruitment
+Vacancies:
+LOAD
+    Title,
+    id,
+    link,
+    replace(replace(description, '<p>',''), '</p>','') AS description,
+    Date(Date#(TRIM(LEFT(SubField(pubDate, ',',2),12)), 'dd MMM yyyy')) AS pubDate,
+    "Coporate-Body",
+    Agency,
+    "Vacancy Type",
+    "Type of Contract",
+    Grade,
+    TRIM(SubField(CityCountry, ',',1)) AS City,
+    TRIM(SubField(CityCountry, ',',2)) AS Country,
+    KeyWords
+FROM [lib://EC Presentation:DataFiles/Vacancy_Table.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+
+///$tab Mapping Data
+DepartmentMap:
+MAPPING LOAD * INLINE [
+Department, Replacement
+Admin Offices,Directorate-General for Human Resources (DG HR)
+Executive Office,Secretariat-General (SG)
+IT/IS,Directorate-General for Informatics (DIGIT)
+Production,Directorate-General for Internal Market, Industry, Entrepreneurship and SMEs (GROW)
+Sales,Directorate-General for Communication (COMM)
+Software Engineering,Joint Research Centre (JRC)
+];
+///$tab Load CSV
+EmployeeStage:
+LOAD
+    EmpID,
+    Employee_Name,
+    MaritalStatusID,
+    GenderID,
+    EmpStatusID,
+    DeptID,
+    PerfScoreID,
+    Salary,
+    Terminated,
+    PositionID,
+    State,
+    Zip,
+    Date(Date#(IF(MID(DOB, LEN(DOB)-2,1)='/',LEFT(DOB,LEN(DOB)-2)&'19'&RIGHT(DOB,2),DOB), 'MM/dd/yyyy')+$(vDateDiff)) AS DOB,
+    CitizenDesc,
+    ManagerName,
+    ManagerID,
+    RecruitmentSource,
+    EngagementSurvey,
+    EmpSatisfaction,
+    SpecialProjectsCount,
+    Date(Date#(LastPerformanceReview_Date, 'MM/dd/yyyy')+$(vDateDiff))  AS LastPerformanceReview_Date,
+    DaysLateLast30,
+    Absences,
+    Date(Date#(DateofHire, 'MM/dd/yyyy')+$(vDateDiff))  AS DateofHire,
+    Date(Date#(DateofTermination, 'MM/dd/yyyy')+$(vDateDiff))  AS DateofTermination,
+    TermReason
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Employees.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+FOR l = 1 to 7
+
+LOAD EmpID,
+    Employee_Name,
+    MaritalStatusID,
+    GenderID,
+    EmpStatusID,
+    DeptID,
+    PerfScoreID,
+    Salary,
+    Terminated,
+    PositionID,
+    State,
+    Zip,
+    DOB,
+    CitizenDesc,
+    ManagerName,
+    ManagerID,
+    RecruitmentSource,
+    EngagementSurvey,
+    EmpSatisfaction,
+    SpecialProjectsCount,
+    LastPerformanceReview_Date,
+    DaysLateLast30,
+    Absences,
+    DateofHire,
+    DateofTermination,
+    TermReason
+ RESIDENT EmployeeStage
+ WHERE (EmpStatusID <> 4 AND EmpStatusID <> 5) OR $(l)<6;
+
+NEXT l;
+
+Demographics:
+LOAD
+    EmpID,
+    FromDiversityJobFairID,
+    HispanicLatino,
+    RaceDesc
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Demographics.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+Department:
+LOAD
+    DeptID,
+    //APPLYMAP('DepartmentMap', Department) AS Department
+    Department
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Department.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+Gender:
+LOAD
+    GenderID,
+    Sex
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Gender.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+MaritalStatus:
+LOAD
+    MaritalStatusID,
+    Married,
+    MaritalDesc
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/MaritalStatus.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+Performance:
+LOAD
+    PerfScoreID,
+    PerformanceScore
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Performance.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+Position:
+LOAD
+    PositionID,
+    Position
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Position.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+Status:
+LOAD
+    EmpStatusID,
+    EmploymentStatus
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Status.csv]
+(txt, utf8, embedded labels, delimiter is ',', msq);
+
+
+///$tab Employee Data
+Employees:
+LOAD *, IF(Age<26, dual('<26',1), IF(Age<31, dual('26-30',2),IF(Age<41, dual('31-40',3),IF(Age<51, dual('41-50',4),IF(Age<61, dual('51-60',5),dual('>=61',6)))))) AS AgeGroup;
+LOAD 
+	EmpID,
+    RecNo() AS EmployeeID,
+    Employee_Name,
+    MaritalStatusID,
+    GenderID,
+    EmpStatusID,
+    DeptID,
+    PerfScoreID,
+    Salary,
+    Terminated,
+    PositionID,
+    State,
+    Zip,
+    DOB,
+    Floor((IF(Terminated=0,Date#('$(vCurrentDate)','dd/MM/yyyy'), DateofTermination) - DOB)/365) AS Age,
+    CitizenDesc,
+    ManagerName,
+    ManagerID,
+    RecruitmentSource,
+    EngagementSurvey,
+    EmpSatisfaction,
+    SpecialProjectsCount,
+    LastPerformanceReview_Date,
+    DaysLateLast30,
+    Absences,
+    DateofHire,
+    DateofTermination,
+    IF(Year(DateofTermination)=2018, 1, 0) AS TerminatedThisYear,
+    IF(EmpStatusID=1 OR EmpStatusID=2 OR EmpStatusID=3, 0, 1) AS IsTerminated,
+    TermReason
+RESIDENT EmployeeStage;
+
+
+EmploymentPeriods:
+LOAD * INLINE [
+EmployeeID, Start, End, Period
+];
+
+FOR j = 2015 to 2025
+
+FOR k = 1 TO 12
+
+CONCATENATE(EmploymentPeriods)
+LOAD EmployeeID, DateofHire AS Start, IF(Terminated=0,Date#('$(vCurrentDate)','dd/MM/yyyy'), DateofTermination) AS End, $(j) AS Period, $(k) AS PeriodMonth
+RESIDENT Employees
+WHERE IF(Terminated=0,Date#('$(vCurrentDate)','dd/MM/yyyy'), DateofTermination) >= MakeDate($(j),$(k),1) AND DateofHire < MonthEnd(MakeDate($(j),$(k),1));
+
+NEXT k;
+
+NEXT j;
+
+
+// IF(End >= MakeDate($(vTestYear),1,1)
+///$tab Advanced Analytics
+// Load in the source data
+TerminationReasonSource:
+Load RowNo() AS RowID, EmpID, TermReason, 'Please categorise this employee termination reason: ['&TermReason&'], as one of the following: Still Employed, Voluntary - Career Related, Voluntary - Personal Circumstances, Involuntary - Performance or Conduct, Involuntary - Unusual. Return only the categorisation.' AS Prompt
+RESIDENT Employees;
+
+// Build our prompt
+[TerminationReasonCategory]:
+LOAD * INLINE [
+id,object,created,model,prompt_tokens,completion_tokens,total_tokens,choices.message.role,choices.message.content,choices.index,choices.finish_reason,EmpID
+];
+
+DROP FIELD TermReason FROM TerminationReasonSource;
+
+// Define the number of partitions
+LET vMaxRows = Ceil(NoOfRows('TerminationReasonSource')/25)-1;
+
+For i = 0 TO $(vMaxRows)
+
+TRACE Processing block $(i) of $(vMaxRows);
+
+TerminationReasonWindowed:
+LOAD EmpID, Prompt 
+RESIDENT TerminationReasonSource
+WHERE RowID > ($(i) * 25) AND RowID < (($(i)+1) * 25);
+
+CONCATENATE(TerminationReasonCategory)
+LOAD
+	[id],
+	[object],
+	[created],
+	[model],
+	[prompt_tokens],
+	[completion_tokens],
+	[total_tokens],
+	[choices.message.role],
+	[choices.message.content],
+	[choices.index],
+	[choices.finish_reason],
+	[EmpID]
+EXTENSION endpoints.ScriptEval('{"RequestType":"endpoint", "endpoint":{"connectionname":"Telenet - DEV:OpenAI - Completions"}}', TerminationReasonWindowed);
+
+DROP TABLE TerminationReasonWindowed;
+
+//Sleep(500);
+
+Trace Done;
+
+NEXT i;
+
+STORE TerminationReasonCategory INTO [lib://Telenet - DEV:DataFiles/Human Resources Data/Categorised.qvd](qvd);
+
+// TODO: Delete before demo - Cost Saving
+TerminationReasonCategory:
+LOAD
+    id,
+    object,
+    created,
+    model,
+    prompt_tokens,
+    completion_tokens,
+    total_tokens,
+    choices.message.role,
+    choices.message.content,
+    choices.index,
+    choices.finish_reason,
+    EmpID
+FROM [lib://Telenet - DEV:DataFiles/Human Resources Data/Categorised.qvd]
+(qvd);
+// End Placeholder
+
+TerminationCategory:
+LOAD EmpID, IF([choices.message.content] = 'Voluntary - career related', 'Voluntary - Career Related', TRIM(REPLACE([choices.message.content],'.',''))) AS TerminationReasonCategory
+RESIDENT TerminationReasonCategory;
+
+DROP TABLE TerminationReasonCategory;
+///$tab Supplemental Data
+CensusDivisionMap:
+LEFT KEEP(Employees)
+LOAD * INLINE [
+State, CensusDivision
+CT, Benelux
+ME, Benelux
+MA, Benelux
+NH, Benelux
+RI, Benelux
+VT, Benelux
+NJ, Baltic States
+NY, Baltic States
+PA, Baltic States
+IL, British Isles
+IN, British Isles
+MI, British Isles
+OH, British Isles
+WI, British Isles
+IA, Nordic Countries
+KS, Nordic Countries
+MN, Nordic Countries
+MO, Nordic Countries
+ND, Nordic Countries
+NE, Nordic Countries
+SD, Nordic Countries
+DC, DACH
+DE, DACH
+FL, DACH
+GA, DACH
+MD, DACH
+NC, DACH
+SC, DACH
+VA, DACH
+WV, DACH
+AL, Southern Europe
+KY, Southern Europe
+MS, Southern Europe
+TN, Southern Europe
+AR, Visegrád Group
+LA, Visegrád Group
+OK, Visegrád Group
+TX, Visegrád Group
+AZ, Balkan
+CO, Balkan
+ID, Balkan
+MT, Balkan
+NM, Balkan
+NV, Balkan
+UT, Balkan
+WY, Balkan
+AK, Candidate Countries
+CA, Candidate Countries
+HI, Candidate Countries
+OR, Candidate Countries
+WA, Candidate Countries
+];
+///$tab AutoML Data
+AttritionPredicted:
+LOAD
+    EmployeeNumber,
+    Attrition_predicted,
+    Attrition_No,
+    Attrition_Yes
+FROM [lib://EC Presentation:DataFiles/PredictAttrition.parquet]
+(parquet);
+
+AttritionSHAPCoOrd:
+LOAD
+    EmployeeNumber,
+    automl_feature,
+    SHAP_value
+FROM [lib://EC Presentation:DataFiles/PredictAttrition_Coordinate_SHAP.parquet]
+(parquet);
+
+AttritionSHAP:
+LOAD
+    EmployeeNumber,
+    Age_SHAP,
+    BusinessTravel_SHAP,
+    DailyRate_SHAP,
+    Department_SHAP,
+    DistanceFromHome_SHAP,
+    Education_SHAP,
+    EducationField_SHAP,
+    EnvironmentSatisfaction_SHAP,
+    Gender_SHAP,
+    HourlyRate_SHAP,
+    JobInvolvement_SHAP,
+    JobLevel_SHAP,
+    JobRole_SHAP,
+    JobSatisfaction_SHAP,
+    MaritalStatus_SHAP,
+    MonthlyIncome_SHAP,
+    MonthlyRate_SHAP,
+    NumCompaniesWorked_SHAP,
+    OverTime_SHAP,
+    PercentSalaryHike_SHAP,
+    PerformanceRating_SHAP,
+    RelationshipSatisfaction_SHAP,
+    StockOptionLevel_SHAP,
+    TotalWorkingYears_SHAP,
+    TrainingTimesLastYear_SHAP,
+    WorkLifeBalance_SHAP,
+    YearsAtCompany_SHAP,
+    YearsInCurrentRole_SHAP,
+    YearsSinceLastPromotion_SHAP,
+    YearsWithCurrManager_SHAP
+FROM [lib://EC Presentation:DataFiles/PredictAttrition_SHAP.parquet]
+(parquet);
+
+Qualify *;
+UnQualify EmployeeNumber;
+
+Apply:
+LOAD
+    EmployeeNumber,
+    "Age",
+    Attrition,
+    BusinessTravel,
+    DailyRate,
+    Department,
+    DistanceFromHome,
+    Education,
+    EducationField,
+    EmployeeCount,
+    EnvironmentSatisfaction,
+    Gender,
+    HourlyRate,
+    JobInvolvement,
+    JobLevel,
+    JobRole,
+    JobSatisfaction,
+    MaritalStatus,
+    MonthlyIncome,
+    MonthlyRate,
+    NumCompaniesWorked,
+    Over18,
+    OverTime,
+    PercentSalaryHike,
+    PerformanceRating,
+    RelationshipSatisfaction,
+    StandardHours,
+    StockOptionLevel,
+    TotalWorkingYears,
+    TrainingTimesLastYear,
+    WorkLifeBalance,
+    YearsAtCompany,
+    YearsInCurrentRole,
+    YearsSinceLastPromotion,
+    YearsWithCurrManager
+FROM [lib://EC Presentation:DataFiles/PredictAttrition_Apply.parquet]
+(parquet);
+
+Unqualify *;
+
+
+///$tab Clean Up
+DROP TABLE EmployeeStage;
+///$tab Distribution List
+Replace LOAD
+    "Name" AS [DL_DISTRIBUTION_RECIPIENT_NAME],
+    "Email" AS [DL_DISTRIBUTION_EMAIL],
+    SubField([Filters],',') AS [DL_DISTRIBUTION_FILTERS],
+    SubField([Groups],',') AS [DL_DISTRIBUTION_GROUP_NAMES]
+FROM "lib://Telenet - DEV:DataFiles/SampleFile (2).xlsx"
+(ooxml, embedded labels, table is DL_DISTRIBUTION_SVC_USERS_QCS);
+
+TempGroups:
+  REPLACE LOAD
+      *
+    FROM "lib://Telenet - DEV:DataFiles/SampleFile (2).xlsx"
+    (ooxml, embedded labels, table is DL_DISTRIBUTION_SVC_GROUPS_QCS);
+
+let vEnabledFieldNo = FieldNumber('Enabled', 'TempGroups');
+
+if (vEnabledFieldNo > 0) then
+    DL_DISTRIBUTION_SVC_GROUPS_QCS:
+    REPLACE LOAD
+        "Name" AS [DL_DISTRIBUTION_GROUP_NAMES],
+        "Description" AS [DL_DISTRIBUTION_GROUP_DESCRIPTION],
+        "Enabled" AS [DL_DISTRIBUTION_GROUP_ENABLED]
+    Resident TempGroups;
+else
+
+    DL_DISTRIBUTION_SVC_GROUPS_QCS:
+    REPLACE LOAD
+        "Name" AS [DL_DISTRIBUTION_GROUP_NAMES],
+        "Description" AS [DL_DISTRIBUTION_GROUP_DESCRIPTION],
+        1 AS [DL_DISTRIBUTION_GROUP_ENABLED]
+    Resident TempGroups;
+end if
+
+Drop Table TempGroups;
+
+tag field DL_DISTRIBUTION_RECIPIENT_NAME with 'DL_DISTRIBUTION_SVC__recipientName';
+tag field DL_DISTRIBUTION_EMAIL with 'DL_DISTRIBUTION_SVC__recipientEmail';
+tag field DL_DISTRIBUTION_FILTERS with 'DL_DISTRIBUTION_SVC__recipientFilters';
+tag field DL_DISTRIBUTION_GROUP_NAMES with 'DL_DISTRIBUTION_SVC__groupsName';
+tag field DL_DISTRIBUTION_GROUP_DESCRIPTION with 'DL_DISTRIBUTION_SVC__groupDescription';
+tag field DL_DISTRIBUTION_GROUP_ENABLED with 'DL_DISTRIBUTION_SVC__groupEnabled';
