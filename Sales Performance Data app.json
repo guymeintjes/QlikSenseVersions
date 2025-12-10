@@ -1,8 +1,12 @@
 
 SHEETS
-{"qInfo":{"qId":"PwHKvff","qType":"sheet"},"qMeta":{"_resourcetype":"app.object","_objecttype":"sheet","id":"PwHKvff","approved":false,"published":false,"owner":"quietlyconfuseddata.com\\lpT4t2Mxlc9HjPKGMUHPPIw47ekAkG1GLlxtozMwIzA","ownerId":"650345520252e3af1d9d6147","createdDate":"2025-12-09T22:43:22.700Z","modifiedDate":"2025-12-09T22:58:33.696Z","encrypted":true,"privileges":["read","update","delete","publish","change_owner"],"title":"My new sheet","description":""},"qData":[]}
+{"qInfo":{"qId":"PwHKvff","qType":"sheet"},"qMeta":{"_resourcetype":"app.object","_objecttype":"sheet","id":"PwHKvff","approved":false,"published":false,"owner":"quietlyconfuseddata.com\\lpT4t2Mxlc9HjPKGMUHPPIw47ekAkG1GLlxtozMwIzA","ownerId":"650345520252e3af1d9d6147","createdDate":"2025-12-09T22:43:22.700Z","modifiedDate":"2025-12-10T10:50:42.105Z","encrypted":true,"privileges":["read","update","delete","publish","change_owner"],"title":"My new sheet","description":""},"qData":[]}
 
 OBJECTS ON SHEETS
+{"name":"awtYyvj","type":"auto-chart","col":0,"row":0,"colspan":12,"rowspan":6,"bounds":{"y":0,"x":0,"width":50,"height":50}}
+{"name":"XGJMP","type":"sn-analysis-autochart","col":12,"row":0,"colspan":12,"rowspan":6,"bounds":{"y":0,"x":50,"width":50,"height":50}}
+{"name":"PPC","type":"sn-analysis-autochart","col":0,"row":6,"colspan":19,"rowspan":6,"bounds":{"y":50,"x":0,"width":79.16666666666666,"height":50}}
+{"name":"EFVfdJ","type":"filterpane","col":19,"row":6,"colspan":5,"rowspan":6,"bounds":{"y":50,"x":79.16666666666666,"width":20.833333333333336,"height":50}}
 
 DIMENSIONS
 
